@@ -1,6 +1,0 @@
-Flask
-requests
-urllib3<2.0
-python-telegram-bot==13.7
-Pillow
-setuptools<58.0.0
